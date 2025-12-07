@@ -85,6 +85,43 @@ import Layout from '../layouts/Layout.astro';
 					</div>
 				</div>
 			</section>
+
+			<!-- IEEE 754 单精度浮点数转换器 -->
+			<section class="ieee754-section">
+				<h2>🌊 IEEE 754 单精度浮点数转换器</h2>
+				<div class="input-group">
+					<label for="float-input">浮点数:</label>
+					<input 
+						type="number" 
+						id="float-input" 
+						placeholder="输入浮点数" 
+						step="any"
+						autocomplete="off"
+					>
+				</div>
+
+				<div class="ieee-results">
+					<div class="ieee-bits">
+						<div class="bit-group sign">
+							<label>符号位 (1位)</label>
+							<div class="bit-box" id="ieee-sign">-</div>
+						</div>
+						<div class="bit-group exponent">
+							<label>指数位 (8位)</label>
+							<div class="bit-box" id="ieee-exponent">-</div>
+						</div>
+						<div class="bit-group mantissa">
+							<label>尾数位 (23位)</label>
+							<div class="bit-box" id="ieee-mantissa">-</div>
+						</div>
+					</div>
+					<div class="ieee-hex">
+						<label>十六进制表示:</label>
+						<span id="ieee-hex-result">-</span>
+					</div>
+					<div class="ieee-explanation" id="ieee-explanation"></div>
+				</div>
+			</section>
 		</div>
 	</main>
 </Layout>
@@ -359,6 +396,95 @@ import Layout from '../layouts/Layout.astro';
 	.result-value:hover {
 		transform: scale(1.05);
 		box-shadow: var(--shadow-md);
+	}
+
+	/* IEEE 754 样式 */
+	.ieee-results {
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+	}
+
+	.ieee-bits {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	.bit-group {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.bit-group label {
+		font-size: 0.8rem;
+		color: var(--text-secondary);
+		font-weight: 600;
+		text-align: center;
+	}
+
+	.bit-box {
+		font-family: 'JetBrains Mono', monospace;
+		padding: 0.75rem;
+		border-radius: 8px;
+		text-align: center;
+		font-weight: 600;
+		letter-spacing: 2px;
+		background: var(--card-bg);
+		border: 1px solid var(--border-color);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.bit-group.sign .bit-box {
+		background: rgba(245, 87, 108, 0.1);
+		border-color: rgba(245, 87, 108, 0.3);
+		color: #f5576c;
+	}
+
+	.bit-group.exponent .bit-box {
+		background: rgba(19, 176, 165, 0.1);
+		border-color: rgba(19, 176, 165, 0.3);
+		color: #13B0A5;
+	}
+
+	.bit-group.mantissa .bit-box {
+		background: rgba(102, 126, 234, 0.1);
+		border-color: rgba(102, 126, 234, 0.3);
+		color: #667eea;
+		flex-grow: 1;
+	}
+
+	.ieee-hex {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		padding: 1rem;
+		background: var(--background);
+		border-radius: 8px;
+		border: 1px solid var(--border-color);
+	}
+
+	.ieee-hex label {
+		font-weight: 600;
+		color: var(--text-primary);
+	}
+
+	#ieee-hex-result {
+		font-family: 'JetBrains Mono', monospace;
+		font-weight: 700;
+		color: var(--text-primary);
+		font-size: 1.1rem;
+	}
+
+	.ieee-explanation {
+		font-size: 0.9rem;
+		color: var(--text-secondary);
+		line-height: 1.6;
+		padding: 1rem;
+		background: rgba(102, 126, 234, 0.05);
+		border-radius: 8px;
+		border-left: 4px solid #667eea;
 	}
 
 	.encoding-item {
@@ -700,9 +826,124 @@ import Layout from '../layouts/Layout.astro';
 		}
 	}
 
+	// IEEE 754 单精度浮点数转换器
+	class IEEE754Converter {
+		constructor() {
+			this.floatInput = document.getElementById('float-input');
+			this.signBox = document.getElementById('ieee-sign');
+			this.exponentBox = document.getElementById('ieee-exponent');
+			this.mantissaBox = document.getElementById('ieee-mantissa');
+			this.hexResult = document.getElementById('ieee-hex-result');
+			this.explanation = document.getElementById('ieee-explanation');
+
+			this.bindEvents();
+		}
+
+		bindEvents() {
+			this.floatInput.addEventListener('input', () => this.convert());
+		}
+
+		convert() {
+			const input = this.floatInput.value.trim();
+			
+			if (!input) {
+				this.clearResults();
+				return;
+			}
+
+			const floatVal = parseFloat(input);
+			if (isNaN(floatVal)) {
+				this.clearResults();
+				return;
+			}
+
+			// 使用 DataView 来获取 IEEE 754 表示
+			const buffer = new ArrayBuffer(4);
+			const view = new DataView(buffer);
+			view.setFloat32(0, floatVal, false); // Big-endian
+
+			const intVal = view.getUint32(0, false);
+			const binaryString = intVal.toString(2).padStart(32, '0');
+
+			const sign = binaryString.substring(0, 1);
+			const exponent = binaryString.substring(1, 9);
+			const mantissa = binaryString.substring(9);
+
+			// 更新显示
+			this.signBox.textContent = sign;
+			this.exponentBox.textContent = this.formatBinary(exponent, 4);
+			this.mantissaBox.textContent = this.formatBinary(mantissa, 4);
+			
+			const hex = intVal.toString(16).toUpperCase().padStart(8, '0');
+			this.hexResult.textContent = '0x' + this.formatBinary(hex, 4, '');
+
+			// 解释
+			this.updateExplanation(floatVal, sign, exponent, mantissa);
+		}
+
+		formatBinary(str, chunk = 4, separator = ' ') {
+			const regex = new RegExp(`.{1,${chunk}}`, 'g');
+			return str.match(regex).join(separator);
+		}
+
+		updateExplanation(floatVal, sign, exponent, mantissa) {
+			const signDesc = sign === '0' ? '正数 (+)' : '负数 (-)';
+			
+			const expInt = parseInt(exponent, 2);
+			const bias = 127;
+			const actualExp = expInt - bias;
+			
+			let mantissaVal = 1;
+			for (let i = 0; i < mantissa.length; i++) {
+				if (mantissa[i] === '1') {
+					mantissaVal += Math.pow(2, -(i + 1));
+				}
+			}
+
+			let explanationText = `
+				<strong>分析：</strong><br>
+				1. 符号位 (S): ${sign} → ${signDesc}<br>
+				2. 指数位 (E): ${exponent} (二进制) = ${expInt} (十进制)<br>
+				   真实指数 = E - Bias = ${expInt} - ${bias} = ${actualExp}<br>
+				3. 尾数位 (M): ${mantissa}<br>
+				   (隐含 1) . ${mantissa}<br>
+				<br>
+				<strong>计算公式：</strong><br>
+				Value = (-1)<sup>S</sup> × (1.M) × 2<sup>E-Bias</sup><br>
+				Value = ${sign === '0' ? 1 : -1} × ${mantissaVal.toFixed(6)}... × 2<sup>${actualExp}</sup> ≈ ${floatVal}
+			`;
+
+            // 特殊值处理
+            if (expInt === 255) {
+                if (parseInt(mantissa, 2) !== 0) {
+                    explanationText = "<strong>NaN (Not a Number)</strong>: 指数全1，尾数非0";
+                } else {
+                    explanationText = `<strong>${sign === '0' ? '+Infinity' : '-Infinity'}</strong>: 指数全1，尾数全0`;
+                }
+            } else if (expInt === 0) {
+                 if (parseInt(mantissa, 2) !== 0) {
+                    explanationText = `<strong>非规格化数 (Denormalized)</strong>: 指数全0，尾数非0<br>真实指数 = 1 - 127 = -126`;
+                } else {
+                    explanationText = `<strong>${sign === '0' ? '+0' : '-0'}</strong>: 指数全0，尾数全0`;
+                }
+            }
+
+			this.explanation.innerHTML = explanationText;
+		}
+
+		clearResults() {
+			this.signBox.textContent = '-';
+			this.exponentBox.textContent = '-';
+			this.mantissaBox.textContent = '-';
+			this.hexResult.textContent = '-';
+			this.explanation.textContent = '';
+		}
+	}
+
 	// 初始化
 	document.addEventListener('DOMContentLoaded', () => {
 		new NumberBaseConverter();
 		new MachineCodeEncoder();
+		new IEEE754Converter();
 	});
 </script>
